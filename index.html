@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Caesar Cipher — Classical Cryptography Tool</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Design tokens ───────────────────────────────────────────── */
+    :root {
+      --ink:        #0a0804;
+      --parchment:  #f5edd8;
+      --gold:       #c9922a;
+      --gold-light: #e8b84b;
+      --rust:       #8b3a1a;
+      --stone:      #3d3228;
+      --stone-mid:  #6b5a47;
+      --stone-pale: #d6c9b0;
+      --cream:      #faf4e8;
+      --accent:     #1a4a6b;
+      --shadow:     rgba(10,8,4,0.45);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Crimson Pro', Georgia, serif;
+      background-color: var(--ink);
+      color: var(--parchment);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Marble texture background ──────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%, #1a1208 0%, transparent 60%),
+        radial-gradient(ellipse 60% 80% at 85% 90%, #12100a 0%, transparent 55%),
+        repeating-linear-gradient(
+          17deg,
+          transparent 0px, transparent 38px,
+          rgba(201,146,42,0.04) 38px, rgba(201,146,42,0.04) 39px
+        );
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Layout ─────────────────────────────────────────────────── */
+    .wrapper {
+      position: relative; z-index: 1;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem 6rem;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    header {
+      text-align: center;
+      margin-bottom: 3.5rem;
+      animation: fadeDown .8s ease both;
+    }
+
+    .header-emblem {
+      font-size: 2.6rem;
+      margin-bottom: .4rem;
+      filter: drop-shadow(0 0 18px rgba(201,146,42,.5));
+    }
+
+    h1 {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(2rem, 5vw, 3.4rem);
+      font-weight: 900;
+      letter-spacing: .06em;
+      line-height: 1.1;
+      background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold) 50%, #a07020 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: none;
+    }
+
+    .tagline {
+      margin-top: .7rem;
+      font-style: italic;
+      font-weight: 300;
+      font-size: 1.05rem;
+      color: var(--stone-pale);
+      letter-spacing: .04em;
+    }
+
+    .divider {
+      display: flex; align-items: center; gap: 1rem;
+      margin: 1.5rem auto 0;
+      max-width: 380px;
+      color: var(--gold);
+      font-family: 'Cinzel', serif;
+      font-size: .7rem;
+      letter-spacing: .2em;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    }
+
+    /* ── Tab nav ────────────────────────────────────────────────── */
+    .tab-nav {
+      display: flex;
+      border: 1px solid rgba(201,146,42,.25);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 2rem;
+      animation: fadeUp .7s .2s ease both;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: .85rem 1rem;
+      border: none;
+      background: rgba(255,255,255,.03);
+      color: var(--stone-pale);
+      font-family: 'Cinzel', serif;
+      font-size: .78rem;
+      letter-spacing: .14em;
+      cursor: pointer;
+      transition: background .2s, color .2s;
+      border-right: 1px solid rgba(201,146,42,.15);
+    }
+    .tab-btn:last-child { border-right: none; }
+    .tab-btn:hover { background: rgba(201,146,42,.08); color: var(--gold-light); }
+    .tab-btn.active {
+      background: rgba(201,146,42,.15);
+      color: var(--gold-light);
+      box-shadow: inset 0 -2px 0 var(--gold);
+    }
+
+    /* ── Card ───────────────────────────────────────────────────── */
+    .card {
+      background: linear-gradient(145deg, rgba(30,22,12,.85) 0%, rgba(20,15,8,.9) 100%);
+      border: 1px solid rgba(201,146,42,.22);
+      border-radius: 6px;
+      padding: 2.2rem 2.5rem;
+      backdrop-filter: blur(4px);
+      box-shadow: 0 8px 48px rgba(0,0,0,.55), inset 0 1px 0 rgba(201,146,42,.12);
+      animation: fadeUp .7s .35s ease both;
+    }
+
+    /* ── Form elements ──────────────────────────────────────────── */
+    .field { margin-bottom: 1.6rem; }
+
+    label {
+      display: block;
+      font-family: 'Cinzel', serif;
+      font-size: .72rem;
+      letter-spacing: .18em;
+      color: var(--gold);
+      margin-bottom: .55rem;
+      text-transform: uppercase;
+    }
+
+    textarea, input[type="number"] {
+      width: 100%;
+      background: rgba(0,0,0,.35);
+      border: 1px solid rgba(201,146,42,.22);
+      border-radius: 4px;
+      color: var(--parchment);
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 1.05rem;
+      padding: .85rem 1.1rem;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      resize: vertical;
+    }
+    textarea:focus, input[type="number"]:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(201,146,42,.12);
+    }
+    textarea { min-height: 110px; }
+    input[type="number"] { -moz-appearance: textfield; }
+    input[type="number"]::-webkit-inner-spin-button { display: none; }
+
+    /* Shift slider row */
+    .shift-row { display: flex; gap: 1rem; align-items: center; }
+    .shift-row input[type="number"] { width: 90px; flex-shrink: 0; text-align: center; }
+    .shift-display {
+      flex: 1;
+      font-family: 'Cinzel', serif;
+      font-size: .85rem;
+      color: var(--stone-pale);
+      letter-spacing: .05em;
+    }
+    .shift-display span { color: var(--gold-light); font-weight: 600; }
+
+    /* Alphabet visualiser */
+    .alpha-viz {
+      margin-top: .8rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .72rem;
+      line-height: 1.9;
+      color: var(--stone-mid);
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .alpha-viz .row { display: flex; gap: 0; }
+    .alpha-viz .cell {
+      width: 24px; text-align: center;
+      transition: color .2s, transform .2s;
+    }
+    .alpha-viz .cell.highlight { color: var(--gold-light); transform: translateY(-1px); }
+    .alpha-label {
+      font-family: 'Cinzel', serif; font-size: .62rem;
+      letter-spacing: .1em; color: var(--stone-mid); margin-bottom: .2rem;
+    }
+
+    /* ── Buttons ────────────────────────────────────────────────── */
+    .btn-row { display: flex; gap: .85rem; margin-top: 1.8rem; flex-wrap: wrap; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .8rem 1.8rem;
+      border: none; border-radius: 4px;
+      font-family: 'Cinzel', serif;
+      font-size: .78rem; letter-spacing: .14em;
+      cursor: pointer;
+      transition: all .2s;
+      position: relative; overflow: hidden;
+    }
+    .btn::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(rgba(255,255,255,.08), transparent);
+      pointer-events: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--gold) 0%, #a57020 100%);
+      color: var(--ink);
+      box-shadow: 0 4px 18px rgba(201,146,42,.35);
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 24px rgba(201,146,42,.5);
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,.06);
+      color: var(--stone-pale);
+      border: 1px solid rgba(201,146,42,.2);
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,.1); color: var(--parchment); }
+
+    .btn:active { transform: scale(.97); }
+    .btn svg { width: 15px; height: 15px; }
+
+    /* ── Result panel ───────────────────────────────────────────── */
+    .result-panel {
+      margin-top: 2rem;
+      background: rgba(0,0,0,.3);
+      border: 1px solid rgba(201,146,42,.18);
+      border-radius: 4px;
+      padding: 1.4rem 1.6rem;
+      display: none;
+    }
+    .result-panel.show { display: block; animation: fadeIn .35s ease; }
+
+    .result-label {
+      font-family: 'Cinzel', serif; font-size: .68rem;
+      letter-spacing: .18em; color: var(--stone-mid);
+      text-transform: uppercase; margin-bottom: .6rem;
+    }
+
+    .result-text {
+      font-size: 1.25rem;
+      color: var(--gold-light);
+      word-break: break-all;
+      line-height: 1.6;
+      font-weight: 300;
+    }
+
+    .copy-btn {
+      margin-top: .9rem;
+      background: none; border: 1px solid rgba(201,146,42,.22);
+      color: var(--stone-pale); border-radius: 4px;
+      padding: .35rem .9rem;
+      font-family: 'Cinzel', serif; font-size: .68rem;
+      letter-spacing: .1em; cursor: pointer;
+      transition: all .2s;
+    }
+    .copy-btn:hover { border-color: var(--gold); color: var(--gold-light); }
+    .copy-btn.copied { border-color: #4caf50; color: #81c784; }
+
+    /* ── Brute-force results ─────────────────────────────────────── */
+    .bf-list {
+      list-style: none;
+      margin-top: .6rem;
+      display: flex; flex-direction: column; gap: .55rem;
+      max-height: 420px; overflow-y: auto;
+    }
+    .bf-item {
+      display: grid;
+      grid-template-columns: 50px 1fr 80px;
+      gap: .5rem; align-items: start;
+      padding: .7rem .9rem;
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(201,146,42,.1);
+      border-radius: 3px;
+      transition: background .15s;
+      cursor: pointer;
+    }
+    .bf-item:hover { background: rgba(201,146,42,.07); border-color: rgba(201,146,42,.25); }
+    .bf-item.top { border-color: rgba(201,146,42,.35); background: rgba(201,146,42,.06); }
+
+    .bf-shift {
+      font-family: 'Cinzel', serif; font-size: .78rem;
+      color: var(--gold); letter-spacing: .06em;
+    }
+    .bf-shift small { display: block; font-size: .6rem; color: var(--stone-mid); }
+    .bf-text { font-size: .95rem; color: var(--parchment); word-break: break-word; }
+    .bf-bar-wrap { text-align: right; }
+    .bf-bar {
+      display: inline-block;
+      height: 4px; border-radius: 2px;
+      background: linear-gradient(90deg, var(--gold), var(--gold-light));
+      margin-bottom: 2px;
+      min-width: 4px;
+    }
+    .bf-score { font-family: 'JetBrains Mono', monospace; font-size: .62rem; color: var(--stone-mid); }
+
+    /* ── Error toast ─────────────────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(4rem);
+      background: var(--rust); color: var(--parchment);
+      padding: .8rem 1.8rem; border-radius: 4px;
+      font-family: 'Cinzel', serif; font-size: .78rem; letter-spacing: .1em;
+      box-shadow: 0 8px 32px rgba(0,0,0,.5);
+      transition: transform .3s ease;
+      z-index: 99;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── About section ──────────────────────────────────────────── */
+    .about-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 1.4rem; margin-top: 1rem;
+    }
+    @media (max-width: 540px) { .about-grid { grid-template-columns: 1fr; } }
+
+    .about-card {
+      background: rgba(0,0,0,.25);
+      border: 1px solid rgba(201,146,42,.15);
+      border-radius: 4px; padding: 1.2rem 1.4rem;
+    }
+    .about-card h3 {
+      font-family: 'Cinzel', serif; font-size: .78rem;
+      letter-spacing: .15em; color: var(--gold);
+      margin-bottom: .6rem;
+    }
+    .about-card p { font-size: .96rem; color: var(--stone-pale); line-height: 1.6; }
+
+    .formula {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .85rem;
+      background: rgba(0,0,0,.4);
+      border-left: 3px solid var(--gold);
+      padding: .6rem 1rem; border-radius: 0 4px 4px 0;
+      margin-top: .7rem; color: var(--gold-light);
+    }
+
+    /* ── Loader ─────────────────────────────────────────────────── */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(201,146,42,.2);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      display: none;
+    }
+    .loading .spinner { display: inline-block; }
+    .loading .btn-text { opacity: .4; }
+
+    /* ── Footer ─────────────────────────────────────────────────── */
+    footer {
+      text-align: center; margin-top: 4rem;
+      font-size: .82rem; color: var(--stone-mid);
+      font-style: italic;
+    }
+    footer a { color: var(--stone-pale); text-decoration: none; }
+    footer a:hover { color: var(--gold-light); }
+
+    /* ── Animations ─────────────────────────────────────────────── */
+    @keyframes fadeDown { from { opacity: 0; transform: translateY(-18px); } to { opacity: 1; transform: none; } }
+    @keyframes fadeUp   { from { opacity: 0; transform: translateY(18px);  } to { opacity: 1; transform: none; } }
+    @keyframes fadeIn   { from { opacity: 0; }                               to { opacity: 1; } }
+    @keyframes spin     { to { transform: rotate(360deg); } }
+
+    /* ── Responsive ─────────────────────────────────────────────── */
+    @media (max-width: 580px) {
+      .card { padding: 1.4rem 1.2rem; }
+      .btn-row { flex-direction: column; }
+      .bf-item { grid-template-columns: 44px 1fr; }
+      .bf-bar-wrap { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- Header -->
+  <header>
+    <div class="header-emblem">⚔</div>
+    <h1>Caesar Cipher</h1>
+    <p class="tagline">Classical Roman Cryptography — Reimagined</p>
+    <div class="divider">MMXXVI</div>
+  </header>
+
+  <!-- Tab Navigation -->
+  <nav class="tab-nav" role="tablist" aria-label="Cipher modes">
+    <button class="tab-btn active" data-tab="encrypt" role="tab">⚿ &nbsp;Encrypt</button>
+    <button class="tab-btn" data-tab="decrypt"         role="tab">🗝 &nbsp;Decrypt</button>
+    <button class="tab-btn" data-tab="brute"           role="tab">🔍 &nbsp;Brute Force</button>
+    <button class="tab-btn" data-tab="about"           role="tab">📜 &nbsp;About</button>
+  </nav>
+
+  <!-- ── ENCRYPT ── -->
+  <section class="card" id="tab-encrypt" role="tabpanel">
+    <div class="field">
+      <label for="enc-input">Plaintext Message</label>
+      <textarea id="enc-input" placeholder="Enter your secret message here…" rows="4"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="enc-shift">Cipher Key (Shift)</label>
+      <div class="shift-row">
+        <input type="number" id="enc-shift" value="3" min="1" max="25" />
+        <div class="shift-display">
+          Shifting each letter by <span id="enc-shift-val">3</span> position(s) →
+          <strong>A</strong> becomes <strong id="enc-preview">D</strong>
+        </div>
+      </div>
+      <div class="alpha-viz" id="enc-alpha-viz" aria-hidden="true"></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="enc-btn" onclick="runEncrypt()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        <span class="btn-text">Encrypt</span>
+        <div class="spinner"></div>
+      </button>
+      <button class="btn btn-secondary" onclick="clearField('enc-input','enc-result')">✕ &nbsp;Clear</button>
+    </div>
+
+    <div class="result-panel" id="enc-result">
+      <div class="result-label">Ciphertext</div>
+      <div class="result-text" id="enc-output"></div>
+      <button class="copy-btn" onclick="copyResult('enc-output', this)">Copy to clipboard</button>
+    </div>
+  </section>
+
+  <!-- ── DECRYPT ── -->
+  <section class="card" id="tab-decrypt" role="tabpanel" style="display:none">
+    <div class="field">
+      <label for="dec-input">Ciphertext Message</label>
+      <textarea id="dec-input" placeholder="Paste the encrypted message here…" rows="4"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="dec-shift">Cipher Key (Shift)</label>
+      <div class="shift-row">
+        <input type="number" id="dec-shift" value="3" min="1" max="25" />
+        <div class="shift-display">
+          Reversing a shift of <span id="dec-shift-val">3</span> position(s) →
+          <strong id="dec-preview">D</strong> becomes <strong>A</strong>
+        </div>
+      </div>
+      <div class="alpha-viz" id="dec-alpha-viz" aria-hidden="true"></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="dec-btn" onclick="runDecrypt()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/><path d="M12 16v-2" stroke-linecap="round"/></svg>
+        <span class="btn-text">Decrypt</span>
+        <div class="spinner"></div>
+      </button>
+      <button class="btn btn-secondary" onclick="clearField('dec-input','dec-result')">✕ &nbsp;Clear</button>
+    </div>
+
+    <div class="result-panel" id="dec-result">
+      <div class="result-label">Plaintext</div>
+      <div class="result-text" id="dec-output"></div>
+      <button class="copy-btn" onclick="copyResult('dec-output', this)">Copy to clipboard</button>
+    </div>
+  </section>
+
+  <!-- ── BRUTE FORCE ── -->
+  <section class="card" id="tab-brute" role="tabpanel" style="display:none">
+    <div class="field">
+      <label for="bf-input">Ciphertext (Unknown Key)</label>
+      <textarea id="bf-input" placeholder="Paste ciphertext to analyse all 25 possible shifts…" rows="4"></textarea>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="bf-btn" onclick="runBruteForce()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <span class="btn-text">Analyse All Shifts</span>
+        <div class="spinner"></div>
+      </button>
+      <button class="btn btn-secondary" onclick="clearField('bf-input','bf-result')">✕ &nbsp;Clear</button>
+    </div>
+
+    <div class="result-panel" id="bf-result">
+      <div class="result-label">Candidates ranked by English likelihood</div>
+      <ul class="bf-list" id="bf-list"></ul>
+    </div>
+  </section>
+
+  <!-- ── ABOUT ── -->
+  <section class="card" id="tab-about" role="tabpanel" style="display:none">
+    <p style="font-size:1.05rem;line-height:1.75;color:var(--stone-pale);margin-bottom:1.4rem;">
+      The <em>Caesar Cipher</em> is one of history's earliest known encryption techniques,
+      named after Julius Caesar who used it to protect sensitive military correspondence.
+      Each letter in the plaintext is shifted a fixed number of positions along the alphabet.
+    </p>
+
+    <div class="about-grid">
+      <div class="about-card">
+        <h3>Encryption Formula</h3>
+        <p>Each character is shifted forward by the key <em>k</em>:</p>
+        <div class="formula">E(x) = (x + k) mod 26</div>
+      </div>
+      <div class="about-card">
+        <h3>Decryption Formula</h3>
+        <p>Reverse the shift to recover plaintext:</p>
+        <div class="formula">D(x) = (x − k) mod 26</div>
+      </div>
+      <div class="about-card">
+        <h3>Key Space</h3>
+        <p>Only 25 non-trivial keys exist (1–25), making brute-force analysis trivial for modern computers.</p>
+      </div>
+      <div class="about-card">
+        <h3>Historical Note</h3>
+        <p>Suetonius records Caesar using a shift of 3. ROT-13 (shift 13) remains in common use today for obfuscation.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Caesar Cipher &mdash; Classical Cryptography Tool &mdash; 
+    <a href="https://github.com/" target="_blank">View Source on GitHub</a></p>
+  </footer>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  /* ── Utilities ──────────────────────────────────────────────────── */
+  const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  function setLoading(btn, on) {
+    btn.classList.toggle('loading', on);
+    btn.disabled = on;
+  }
+
+  function clearField(inputId, resultId) {
+    document.getElementById(inputId).value = '';
+    const r = document.getElementById(resultId);
+    r.classList.remove('show');
+  }
+
+  function copyResult(id, btn) {
+    const text = document.getElementById(id).textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '✓  Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy to clipboard'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
+  /* ── Alphabet visualiser ────────────────────────────────────────── */
+  function buildAlphaViz(containerId, shift) {
+    const el = document.getElementById(containerId);
+    shift = ((shift % 26) + 26) % 26;
+    const shifted = ALPHA.slice(shift) + ALPHA.slice(0, shift);
+
+    el.innerHTML = `
+      <div class="alpha-label">Plain &nbsp;&nbsp;</div>
+      <div class="row">${[...ALPHA].map((c,i)=>`<div class="cell ${i<3?'highlight':''}">${c}</div>`).join('')}</div>
+      <div class="alpha-label" style="margin-top:4px">Cipher</div>
+      <div class="row">${[...shifted].map((c,i)=>`<div class="cell ${i<3?'highlight':''}">${c}</div>`).join('')}</div>
+    `;
+  }
+
+  function updateShiftPreview(shiftId, valId, previewId, vizId, isDecrypt = false) {
+    const inp = document.getElementById(shiftId);
+    let s = parseInt(inp.value) || 1;
+    s = Math.max(1, Math.min(25, s));
+    inp.value = s;
+    document.getElementById(valId).textContent = s;
+    if (!isDecrypt) {
+      document.getElementById(previewId).textContent = ALPHA[(0 + s) % 26];
+    } else {
+      document.getElementById(previewId).textContent = ALPHA[(0 + s) % 26];
+    }
+    buildAlphaViz(vizId, s);
+  }
+
+  /* ── Tab switching ──────────────────────────────────────────────── */
+  const TABS = ['encrypt','decrypt','brute','about'];
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      TABS.forEach(t => {
+        document.getElementById('tab-' + t).style.display = t === tab ? '' : 'none';
+      });
+    });
+  });
+
+  /* ── API calls ──────────────────────────────────────────────────── */
+  async function callApi(endpoint, payload) {
+    const res = await fetch('/api/' + endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return res.json();
+  }
+
+  /* ── Standalone JS cipher (works without Flask server) ─────────── */
+  function cipherJS(text, shift, encrypt) {
+    if (!encrypt) shift = -shift;
+    return [...text].map(ch => {
+      if (!/[a-zA-Z]/.test(ch)) return ch;
+      const base = ch >= 'a' ? 97 : 65;
+      return String.fromCharCode(((ch.charCodeAt(0) - base + shift + 260) % 26) + base);
+    }).join('');
+  }
+
+  function bruteForceJS(text) {
+    const freq = 'etaoinshrdlcumwfgypbvkjxqz';
+    const candidates = [];
+    for (let s = 1; s <= 25; s++) {
+      const decoded = cipherJS(text, s, false);
+      const letters = decoded.toLowerCase().replace(/[^a-z]/g,'');
+      if (!letters) { candidates.push({shift:s,text:decoded,score:0}); continue; }
+      const counts = {};
+      [...letters].forEach(c => counts[c] = (counts[c]||0)+1);
+      let score = 0;
+      [...freq].forEach((c,i) => { score += ((26-i)/26) * ((counts[c]||0)/letters.length); });
+      candidates.push({shift:s,text:decoded,score});
+    }
+    return candidates.sort((a,b)=>b.score-a.score);
+  }
+
+  /* Smart runner: try API, fall back to JS */
+  async function safeCall(endpoint, payload) {
+    try {
+      const data = await callApi(endpoint, payload);
+      if (data.status === 'success') return { ok: true, data };
+      return { ok: false, error: data.message };
+    } catch {
+      // Server not running — use JS implementation
+      if (endpoint === 'encrypt') {
+        const result = cipherJS(payload.text, payload.shift, true);
+        return { ok: true, data: { result, shift: payload.shift } };
+      }
+      if (endpoint === 'decrypt') {
+        const result = cipherJS(payload.text, payload.shift, false);
+        return { ok: true, data: { result, shift: payload.shift } };
+      }
+      if (endpoint === 'brute-force') {
+        const candidates = bruteForceJS(payload.text);
+        return { ok: true, data: { candidates } };
+      }
+    }
+  }
+
+  /* ── Encrypt handler ────────────────────────────────────────────── */
+  async function runEncrypt() {
+    const text = document.getElementById('enc-input').value.trim();
+    const shift = parseInt(document.getElementById('enc-shift').value);
+    if (!text) { showToast('Please enter a message to encrypt.'); return; }
+    if (!shift || shift < 1 || shift > 25) { showToast('Shift must be between 1 and 25.'); return; }
+
+    const btn = document.getElementById('enc-btn');
+    setLoading(btn, true);
+    const { ok, data, error } = await safeCall('encrypt', { text, shift });
+    setLoading(btn, false);
+
+    if (!ok) { showToast(error); return; }
+    document.getElementById('enc-output').textContent = data.result;
+    document.getElementById('enc-result').classList.add('show');
+  }
+
+  /* ── Decrypt handler ────────────────────────────────────────────── */
+  async function runDecrypt() {
+    const text = document.getElementById('dec-input').value.trim();
+    const shift = parseInt(document.getElementById('dec-shift').value);
+    if (!text) { showToast('Please enter a message to decrypt.'); return; }
+    if (!shift || shift < 1 || shift > 25) { showToast('Shift must be between 1 and 25.'); return; }
+
+    const btn = document.getElementById('dec-btn');
+    setLoading(btn, true);
+    const { ok, data, error } = await safeCall('decrypt', { text, shift });
+    setLoading(btn, false);
+
+    if (!ok) { showToast(error); return; }
+    document.getElementById('dec-output').textContent = data.result;
+    document.getElementById('dec-result').classList.add('show');
+  }
+
+  /* ── Brute-force handler ────────────────────────────────────────── */
+  async function runBruteForce() {
+    const text = document.getElementById('bf-input').value.trim();
+    if (!text) { showToast('Please enter ciphertext to analyse.'); return; }
+
+    const btn = document.getElementById('bf-btn');
+    setLoading(btn, true);
+    const { ok, data, error } = await safeCall('brute-force', { text });
+    setLoading(btn, false);
+
+    if (!ok) { showToast(error); return; }
+
+    const maxScore = Math.max(...data.candidates.map(c => c.score)) || 1;
+    const list = document.getElementById('bf-list');
+    list.innerHTML = data.candidates.map((c, i) => {
+      const pct = Math.round((c.score / maxScore) * 100);
+      return `
+        <li class="bf-item ${i===0?'top':''}" title="Click to use this as decryption"
+            onclick="useCandidate(${c.shift}, '${escHtml(c.text)}')">
+          <div class="bf-shift">
+            Shift <strong>${c.shift}</strong>
+            ${i===0 ? '<small>★ Best match</small>' : ''}
+          </div>
+          <div class="bf-text">${escHtml(c.text.substring(0,120))}${c.text.length>120?'…':''}</div>
+          <div class="bf-bar-wrap">
+            <div class="bf-bar" style="width:${Math.max(pct,4)}%"></div>
+            <div class="bf-score">${(c.score*100).toFixed(1)}%</div>
+          </div>
+        </li>`;
+    }).join('');
+    document.getElementById('bf-result').classList.add('show');
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function useCandidate(shift, text) {
+    document.getElementById('dec-input').value = document.getElementById('bf-input').value;
+    document.getElementById('dec-shift').value = shift;
+    updateShiftPreview('dec-shift','dec-shift-val','dec-preview','dec-alpha-viz', true);
+    document.querySelectorAll('.tab-btn')[1].click();
+    runDecrypt();
+  }
+
+  /* ── Init shift listeners ───────────────────────────────────────── */
+  document.getElementById('enc-shift').addEventListener('input', () =>
+    updateShiftPreview('enc-shift','enc-shift-val','enc-preview','enc-alpha-viz'));
+  document.getElementById('dec-shift').addEventListener('input', () =>
+    updateShiftPreview('dec-shift','dec-shift-val','dec-preview','dec-alpha-viz', true));
+
+  /* Enter key submission */
+  ['enc-input','enc-shift'].forEach(id =>
+    document.getElementById(id).addEventListener('keydown', e => { if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); runEncrypt(); } }));
+  ['dec-input','dec-shift'].forEach(id =>
+    document.getElementById(id).addEventListener('keydown', e => { if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); runDecrypt(); } }));
+
+  /* Init visualisers */
+  buildAlphaViz('enc-alpha-viz', 3);
+  buildAlphaViz('dec-alpha-viz', 3);
+</script>
+</body>
+</html>
